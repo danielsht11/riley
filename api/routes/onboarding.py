@@ -9,6 +9,7 @@ router = APIRouter(prefix=PREFIX, tags=["onboarding"])
 
 class BusinessRequest(BaseModel):
     business_name: str
+    business_email: str | None = None
     business_scope: str
     business_hours: str
     business_callout_phone: str
@@ -21,6 +22,7 @@ class BusinessRequest(BaseModel):
 async def create_business(payload: BusinessRequest):
     business = Business(
         name=payload.business_name,
+        email=payload.business_email,
         scope=payload.business_scope,
         hours=payload.business_hours,
         callout_phone=payload.business_callout_phone,

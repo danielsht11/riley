@@ -14,6 +14,7 @@ class Business(Base):
     __tablename__ = "businesses"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(60), index=True, nullable=False)
+    email = Column(String)
     scope = Column(String, index=True)
     hours = Column(String)
     callout_phone = Column(String)

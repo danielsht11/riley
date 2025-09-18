@@ -120,7 +120,8 @@ class MeetingScheduledEventHandler(BaseEventHandler):
         
         email_data = {
             **data,
-            'timestamp': event_data['timestamp']
+            'timestamp': event_data['timestamp'],
+            'call_sid': event_data.get('call_sid')
         }
         
         self.email_service.send_email(subject, 'meeting_scheduled', email_data)

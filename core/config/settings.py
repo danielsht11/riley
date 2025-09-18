@@ -31,7 +31,6 @@ class Settings:
     # Email Configuration
     SMTP_SERVER: str = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT: int = int(os.getenv('SMTP_PORT', 587))
-    EMAIL_USER: str = os.getenv('EMAIL_USER', '')
     EMAIL_PASS: str = os.getenv('EMAIL_PASS', '')
     BUSINESS_EMAIL: str = os.getenv('BUSINESS_EMAIL', '')
     

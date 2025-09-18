@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 class BusinessBase(BaseModel):
     name: str
+    email: Optional[str] = None
     scope: Optional[str] = None
     hours: Optional[str] = None
     callout_phone: Optional[str] = None

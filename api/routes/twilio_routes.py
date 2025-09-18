@@ -56,7 +56,7 @@ TOOLS = [
                 },
                 "address": {
                     "type": "string",
-                    "description": "Client's address (if relevant)"
+                    "description": "Client's address"
                 },
                 "email": {
                     "type": "string",
@@ -87,10 +87,11 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "client_name": {"type": "string"},
-                "preferred_date": {"type": "string"},
-                "preferred_time": {"type": "string"},
+                "preferred_date": {"type": "string", "description": "Client's preferred date"},
+                "preferred_time": {"type": "string", "description": "Client's preferred time"},
                 "meeting_type": {"type": "string", "enum": ["phone", "video", "in_person"]},
-                "notes": {"type": "string"}
+                "address": {"type": "string", "description": "Client's address"},
+                "notes": {"type": "string", "description": "Additional notes about the client or their request"},
             },
             "required": ["client_name", "preferred_date", "preferred_time"]
         }
@@ -104,7 +105,9 @@ TOOLS = [
             "properties": {
                 "client_data": {"type": "object"},
                 "priority": {"type": "string", "enum": ["low", "medium", "high"]},
-                "notes": {"type": "string"}
+                "notes": {"type": "string"},
+                "business_email": {"type": "string"},
+                "business_phone": {"type": "string"}
             },
             "required": ["client_data"]
         }
@@ -248,12 +251,8 @@ async def handle_media_stream(websocket: WebSocket,
             "OpenAI-Beta": "realtime=v1"
         }
     ) as openai_ws:
-        # call = twilio_service.get_call(call_sid)
-        # forwarded_from = "1234567890"
-        # owner = ownerService.get_owner_by_phone(db, forwarded_from)
-        # business = BusinessService.get_business(db, owner.id, forwarded_from)
         await initialize_session(openai_ws)
-        # Connection specific state
+
         stream_sid = None
         latest_media_timestamp = 0
         last_assistant_item = None
@@ -310,7 +309,7 @@ async def handle_media_stream(websocket: WebSocket,
                         arguments = json.loads(response.get('arguments', '{}'))
                         
                         # Process the function call and extract customer data
-                        result = await handle_function_call(function_name, arguments, stream_sid, owner, business)
+                        result = await handle_function_call(function_name, arguments, stream_sid, call_sid, owner, business)
                         
                         # Send function result back to OpenAI
                         function_result = {
@@ -345,19 +344,16 @@ async def handle_media_stream(websocket: WebSocket,
                         await send_mark(websocket, stream_sid)
 
                     if response.get('type') == 'input_audio_buffer.speech_started':
-                        print("Speech started detected.")
                         if last_assistant_item:
-                            print(f"Interrupting response with id: {last_assistant_item}")
                             await handle_speech_started_event()
-                # if should_end:
-                #     await twilio_service.hangup_call(call_sid)
+                if should_end:
+                    await twilio_service.hangup_call(call_sid)
             except Exception as e:
                 print(f"Error in send_to_twilio: {e}")
 
         async def handle_speech_started_event():
             """Handle interruption when the caller's speech starts."""
             nonlocal response_start_timestamp_twilio, last_assistant_item
-            print("Handling speech started event.")
             if mark_queue and response_start_timestamp_twilio is not None:
                 elapsed_time = latest_media_timestamp - response_start_timestamp_twilio
                 if SHOW_TIMING_MATH:
@@ -436,11 +432,15 @@ async def initialize_session(openai_ws, owner: Optional[Owner] = None, business:
             "tools": TOOLS
         }
     }
-    print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
 
 
-async def handle_function_call(function_name, arguments, stream_sid: int, owner: Optional[Owner] = None, business: Optional[Business] = None):
+async def handle_function_call(function_name, 
+                               arguments, 
+                               stream_sid: int, 
+                               call_sid: str,
+                               owner: Optional[Owner] = None, 
+                               business: Optional[Business] = None):
     """Handle function calls from OpenAI and extract customer data"""
     print(f"\n🔧 Function called: {function_name}")
     print(f"📝 Arguments: {json.dumps(arguments, indent=2, ensure_ascii=False)}")
@@ -475,7 +475,8 @@ async def handle_function_call(function_name, arguments, stream_sid: int, owner:
             await redis_client.store_customer_session(stream_sid or "unknown", {
                 **arguments,
                 "timestamp": datetime.now().isoformat(),
-                "validation_status": "valid"
+                "validation_status": "valid",
+                "call_sid": call_sid
             })
             
             return {
@@ -510,7 +511,7 @@ async def handle_function_call(function_name, arguments, stream_sid: int, owner:
         print(f"Type: {arguments.get('meeting_type', 'Not specified')}")
         
         # Publish meeting event to Redis
-        await redis_client.publish_event('meeting_scheduled', arguments, stream_sid)
+        await redis_client.publish_event('meeting_scheduled', arguments, stream_sid, call_sid)
         
         return {
             "status": "success",
@@ -522,7 +523,7 @@ async def handle_function_call(function_name, arguments, stream_sid: int, owner:
         print(f"Priority: {arguments.get('priority', 'medium')}")
         
         # Publish email request to Redis
-        await redis_client.publish_event('email_request', arguments, stream_sid)
+        await redis_client.publish_event('email_request', arguments, stream_sid, call_sid)
         
         return {
             "status": "success",

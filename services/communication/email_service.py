@@ -11,6 +11,11 @@ from typing import Dict, Any, Optional
 import jinja2
 from core.config.settings import settings
 from core.config.logging_config import get_logger
+from db.database import get_db
+from models import Business, Owner
+from sqlalchemy.orm import Session
+from services import OwnerService, BusinessService, twilio_service
+from db.database import get_db
 
 logger = get_logger(__name__)
 
@@ -21,9 +26,7 @@ class EmailService:
     def __init__(self):
         self.smtp_server = settings.SMTP_SERVER
         self.smtp_port = settings.SMTP_PORT
-        self.email_owner = settings.EMAIL_USER
         self.email_pass = settings.EMAIL_PASS
-        self.business_email = settings.BUSINESS_EMAIL
         
         # Email templates
         self.templates = {
@@ -86,7 +89,8 @@ class EmailService:
             <li><strong>Client:</strong> {{ client_name }}</li>
             <li><strong>Date:</strong> {{ preferred_date }}</li>
             <li><strong>Time:</strong> {{ preferred_time }}</li>
-            <li><strong>Type:</strong> {{ meeting_type }}</li>
+            <li><strong>Address:</strong> {{ address }}</li>
+            <li><strong>Reach Out Method:</strong> {{ meeting_type }}</li>
             {% if notes %}<li><strong>Notes:</strong> {{ notes }}</li>{% endif %}
             </ul>
             
@@ -121,20 +125,24 @@ class EmailService:
         
         self.template_env = jinja2.Environment(loader=jinja2.DictLoader(self.templates))
     
-    def send_email(self, subject: str, template_name: str, data: Dict[Any, Any], 
-                   recipient: Optional[str] = None) -> bool:
+    def send_email(self, subject: str, template_name: str, data: Dict[Any, Any]) -> bool:
         """Send email using template"""
+        db = next(get_db())
         try:
-            if not all([self.email_owner, self.email_pass, self.business_email]):
+            call_sid = data.get('call_sid')
+            if not all([settings.EMAIL_PASS, call_sid]):
                 logger.warning("Email credentials not configured")
                 return False
-            
+            call = twilio_service.get_call(call_sid)
+            forwarded_from = call.forwarded_from if call.forwarded_from != call.to else settings.FORWARDED_FROM
+            business = BusinessService.get_business(db, forwarded_from)
+            assert business, "Business not found"
             template = self.template_env.get_template(template_name)
             html_content = template.render(**data)
             
             msg = MIMEMultipart('alternative')
-            msg['From'] = self.email_owner
-            msg['To'] = recipient or self.business_email
+            msg['From'] = settings.BUSINESS_EMAIL
+            msg['To'] = business.email
             msg['Subject'] = subject
             
             html_part = MIMEText(html_content, 'html', 'utf-8')
@@ -142,7 +150,7 @@ class EmailService:
             
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
-                server.login(self.email_owner, self.email_pass)
+                server.login(settings.BUSINESS_EMAIL, settings.EMAIL_PASS)
                 server.send_message(msg)
             
             logger.info(f"✅ Email sent: {subject}")
@@ -154,4 +162,4 @@ class EmailService:
     
     def is_configured(self) -> bool:
         """Check if email service is properly configured"""
-        return all([self.email_owner, self.email_pass, self.business_email])
+        return all([settings.BUSINESS_EMAIL, settings.EMAIL_PASS])

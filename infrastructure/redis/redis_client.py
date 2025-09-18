@@ -42,7 +42,7 @@ class RedisClient:
             self.connected = False
             logger.info("✅ Disconnected from Redis")
     
-    async def publish_event(self, event_type: str, data: Dict[Any, Any], stream_id: str = None) -> bool:
+    async def publish_event(self, event_type: str, data: Dict[Any, Any], stream_id: str = None, call_sid: str = None) -> bool:
         """Publish customer events to Redis for downstream processing"""
         if not self.connected or not self.client:
             logger.warning("Redis not connected, skipping event publication")
@@ -55,6 +55,7 @@ class RedisClient:
                 'event_type': event_type,
                 'timestamp': datetime.now().isoformat(),
                 'stream_id': stream_id,
+                'call_sid': call_sid,
                 'data': data
             }
             

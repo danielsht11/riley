@@ -2,7 +2,14 @@ from sqlalchemy.orm import Session
 from models.business import Business
 from schemas.business import BusinessCreate
 def create_business(db: Session, business: BusinessCreate):
-    db_business = Business(name=business.name, scope=business.scope, hours=business.hours, callout_phone=business.callout_phone, webpage_url=business.webpage_url)
+    db_business = Business(
+        name=business.name,
+        email=business.email,
+        scope=business.scope,
+        hours=business.hours,
+        callout_phone=business.callout_phone,
+        webpage_url=business.webpage_url
+    )
     db.add(db_business)
     db.commit()
     db.refresh(db_business)
