@@ -23,25 +23,57 @@ class RedisClient:
         self.connected = False
     
     async def connect(self) -> bool:
-        """Connect to Redis"""
+        """Connect to Redis with proper async client"""
         try:
-            self.client = redis.from_url(settings.REDIS_URL, decode_responses=True)
-            await self.client.ping()
-            self.connected = True
-            logger.info("✅ Connected to Redis successfully")
-            return True
+            # Create connection pool for better performance
+            self.pool = redis.ConnectionPool.from_url(
+                settings.REDIS_URL,
+                decode_responses=True,
+                max_connections=20,
+                retry_on_timeout=True,
+                health_check_interval=30,
+                socket_connect_timeout=5,
+                socket_timeout=5
+            )
+            
+            # Create async Redis client
+            self.client = redis.Redis(connection_pool=self.pool)
+            
+            # Test the connection
+            result = await self.client.ping()
+            if result:
+                self.connected = True
+                logger.info("✅ Connected to Redis successfully")
+                return True
+            else:
+                logger.error("❌ Redis ping returned False")
+                return False
+                
+        except redis.ConnectionError as e:
+            logger.error(f"❌ Redis connection error: {e}")
+            self.connected = False
+            return False
+        except redis.TimeoutError as e:
+            logger.error(f"❌ Redis timeout error: {e}")
+            self.connected = False
+            return False
         except Exception as e:
             logger.error(f"❌ Failed to connect to Redis: {e}")
             self.connected = False
             return False
-    
-    async def disconnect(self) -> None:
-        """Disconnect from Redis"""
+
+    async def disconnect(self):
+        """Properly close Redis connection"""
         if self.client:
-            await self.client.close()
-            self.connected = False
-            logger.info("✅ Disconnected from Redis")
-    
+            try:
+                await self.client.close()
+                if self.pool:
+                    await self.pool.disconnect()
+                self.connected = False
+                logger.info("✅ Redis connection closed")
+            except Exception as e:
+                logger.error(f"❌ Error closing Redis connection: {e}")
+                    
     async def publish_event(self, event_type: str, data: Dict[Any, Any], stream_id: str = None, call_sid: str = None) -> bool:
         """Publish customer events to Redis for downstream processing"""
         if not self.connected or not self.client:
@@ -66,7 +98,7 @@ class RedisClient:
             await self.client.publish(channel, json.dumps(event_payload, ensure_ascii=False))
             
             # Also store in Redis for persistence with TTL (24 hours)
-            key = f"customer:session:{stream_id or 'unknown'}:{event_payload['event_id']}"
+            key = f"customer:session:{stream_id or call_sid}:{event_payload['event_id']}"
             await self.client.setex(key, 86400, json.dumps(event_payload, ensure_ascii=False))
             
             # Check for high priority and publish to priority channel

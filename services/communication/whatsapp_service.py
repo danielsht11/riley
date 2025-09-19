@@ -30,7 +30,7 @@ class WhatsAppService:
         'customer_data': """🎯 *New Customer Contact*
         
 📅 Time: {timestamp}
-👤 Name: {full_name}
+👤 Name: {client_name}
 📱 Phone: {phone_number}
 🏠 Address: {address}
 💭 Reason: {reason_calling}
@@ -41,7 +41,7 @@ class WhatsAppService:
         
         'high_priority': """🚨 *HIGH PRIORITY CUSTOMER*
 
-👤 {full_name}
+👤 {client_name}
 📱 {phone_number}
 ⚡ Urgency: *{urgency}*
 

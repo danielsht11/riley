@@ -77,7 +77,7 @@ async def validate_customer_data(customer_data: Dict[Any, Any]):
                 "status": "success",
                 "message": "Customer data validated successfully",
                 "data": {
-                    "full_name": validated_data.full_name,
+                    "client_name": validated_data.client_name,
                     "phone_number": validated_data.phone_number,
                     "email": getattr(validated_data, 'email', None),
                     "address": validated_data.address,

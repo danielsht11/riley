@@ -135,8 +135,8 @@ class Settings:
     רצוי: דחיפות, הערות גישה (חניה/שער/כלב), קוד כניסה.
   - תיאום שיחת ייעוץ/חזרה — חובה: שם, טלפון, נושא/מטרה, חלון זמן.
     רצוי: ערוץ (טלפון/וידאו), אימייל לזימון.
-  - השארת הודעה/בקשת חזרה — חובה: נושא/מטרה, טלפון.
-    רצוי: שם, שעות נוחות.
+  - השארת הודעה/בקשת חזרה — חובה: נושא/מטרה, טלפון, שם.
+    רצוי: שעות נוחות.
   - בדיקת כיסוי — חובה: אזור/עיר (רצוי כתובת מלאה).
   - בדיקת זמינות — חובה: חלון זמן מועדף (ורצוי חלופות).
   - פתיחת קריאה/ליד — חובה: שם, טלפון, נושא/בעיה, סטטוס ראשוני.
@@ -294,87 +294,6 @@ class Settings:
 כלים – חשאיות:
   - פלטי כלים (JSON/שמות פונקציות) לא נחשפים בשיחה.
 """
-
-    # Tools Configuration
-    TOOLS: list = [
-        {
-            "type": "function",
-            "function": {
-                "name": "gather_client_information",
-                "description": "Collect and store client information including name, phone, address, reason for calling",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "full_name": {
-                            "type": "string",
-                            "description": "Client's full name"
-                        },
-                        "phone_number": {
-                            "type": "string",
-                            "description": "Client's phone number"
-                        },
-                        "address": {
-                            "type": "string",
-                            "description": "Client's address (if relevant)"
-                        },
-                        "email": {
-                            "type": "string",
-                            "description": "Client's email address"
-                        },
-                        "reason_calling": {
-                            "type": "string",
-                            "description": "Detailed description of why the client is calling"
-                        },
-                        "preferred_contact_method": {
-                            "type": "string",
-                            "enum": ["Whatsapp", "Email", "Phone"],
-                            "description": "Client's preferred method of contact"
-                        },
-                        "additional_notes": {
-                            "type": "string",
-                            "description": "Additional notes about the client or their request"
-                        }
-                    },
-                    "required": ["full_name", "reason_calling", "preferred_contact_method"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "set_up_meeting",
-                "description": "Schedule a meeting with the client",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "client_name": {"type": "string"},
-                        "preferred_date": {"type": "string"},
-                        "preferred_time": {"type": "string"},
-                        "meeting_type": {"type": "string", "enum": ["phone", "video", "in_person"]},
-                        "notes": {"type": "string"}
-                    },
-                    "required": ["client_name", "preferred_date", "preferred_time"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "send_business_email",
-                "description": "Send client details to business email for follow-up",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "client_data": {"type": "object"},
-                        "priority": {"type": "string", "enum": ["low", "medium", "high"]},
-                        "notes": {"type": "string"}
-                    },
-                    "required": ["client_data"]
-                }
-            }
-        }
-    ]
-
 
 # Global settings instance
 settings = Settings()

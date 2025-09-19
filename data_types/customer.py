@@ -10,7 +10,7 @@ class CustomerCallSchema(Schema):
         format="iso",
         metadata={"description": "Time the call was recorded"}
     )
-    full_name = fields.Str(
+    client_name = fields.Str(
         required=True,
         validate=validate.Length(min=2, max=100)
     )
@@ -34,10 +34,10 @@ class CustomerCallSchema(Schema):
         return CustomerCall(**data)
 
 class CustomerCall:
-    def __init__(self, timestamp: datetime, full_name: str, reason_calling: str, preferred_contact_method: str, 
+    def __init__(self, timestamp: datetime, client_name: str, reason_calling: str, preferred_contact_method: str, 
                  phone_number: str = None, email: str = None, address: str = None, additional_notes: str = None):
         self.timestamp = timestamp
-        self.full_name = full_name
+        self.client_name = client_name
         self.phone_number = phone_number
         self.email = email
         self.address = address
@@ -47,4 +47,4 @@ class CustomerCall:
         
     def __repr__(self):
         phone_display = self.phone_number if self.phone_number else "No phone"
-        return f"<CustomerCall(name={self.full_name}, phone={phone_display})>"
+        return f"<CustomerCall(name={self.client_name}, phone={phone_display})>"

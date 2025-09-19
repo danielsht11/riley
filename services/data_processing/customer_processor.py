@@ -42,7 +42,7 @@ class CustomerDataProcessor:
             # Validate and create CustomerCall object
             customer_call = self.schema.load(validation_data)
             
-            logger.info(f"✅ Customer data validated successfully for {customer_call.full_name}")
+            logger.info(f"✅ Customer data validated successfully for {customer_call.client_name}")
             return customer_call, None
             
         except ValidationError as e:

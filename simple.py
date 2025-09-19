@@ -105,7 +105,7 @@ async def store_customer_session(stream_id: str, data: Dict[Any, Any]):
         await redis_client.setex(session_key, 604800, json.dumps(data, ensure_ascii=False))
         
         # Add to customer index for easy lookup
-        customer_name = data.get('full_name', '').strip()
+        customer_name = data.get('client_name', '').strip()
         phone = data.get('phone_number', '').strip()
         
         if customer_name:
@@ -204,7 +204,7 @@ def print_customer_data(data, stream_id=None):
 def get_field_emoji(field_name):
     """Get appropriate emoji for field names"""
     emoji_map = {
-        'full_name': '👤',
+        'client_name': '👤',
         'phone_number': '📱',
         'address': '🏠',
         'email': '📧',
@@ -224,7 +224,7 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "full_name": {
+                "client_name": {
                     "type": "string",
                     "description": "Client's full name"
                 },
@@ -254,7 +254,7 @@ TOOLS = [
                     "description": "Additional notes about the client or their request"
                 }
             },
-            "required": ["full_name", "reason_calling", "preferred_contact_method"]
+            "required": ["client_name", "reason_calling", "preferred_contact_method"]
         }
     },
     {

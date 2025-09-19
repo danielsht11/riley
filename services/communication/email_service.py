@@ -31,95 +31,183 @@ class EmailService:
         # Email templates
         self.templates = {
             'customer_data': """
-            <h2>🎯 New Customer Contact</h2>
-            <p><strong>Time:</strong> {{ timestamp }}</p>
-            <p><strong>Stream ID:</strong> {{ stream_id }}</p>
-            <p><strong>Validation:</strong> <span style="color: green;">✅ VALIDATED</span></p>
-            
-            <h3>Customer Information:</h3>
-            <ul>
-            <li><strong>Name:</strong> {{ full_name }}</li>
-            <li><strong>Phone:</strong> <a href="tel:{{ phone_number }}">{{ phone_number }}</a></li>
-            {% if email %}<li><strong>Email:</strong> <a href="mailto:{{ email }}">{{ email }}</a></li>{% endif %}
-            {% if company %}<li><strong>Company:</strong> {{ company }}</li>{% endif %}
-            <li><strong>Address:</strong> {{ address }}</li>
-            </ul>
-            
-            <h3>Contact Details:</h3>
-            <p><strong>Reason for calling:</strong> {{ reason_calling }}</p>
-            <p><strong>Preferred contact:</strong> <span style="background: #e3f2fd; padding: 2px 6px; border-radius: 4px;">{{ preferred_contact_method }}</span></p>
-            {% if urgency %}<p><strong>Urgency:</strong> <span style="color: {% if urgency in ['high', 'urgent'] %}red{% else %}green{% endif %};">{{ urgency.upper() }}</span></p>{% endif %}
-            {% if additional_notes %}<p><strong>Notes:</strong> {{ additional_notes }}</p>{% endif %}
-            
-            <hr>
-            <p><em>This customer data has been automatically validated using the CustomerCall schema.</em></p>
+            <!DOCTYPE html>
+            <html lang=\"en\">
+            <head>
+                <meta charset=\"UTF-8\">
+                <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+                <title>New Customer Contact</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #6b46c1; padding: 24px; }
+                    .template { max-width: 600px; margin: 0 auto; background: #f3e8ff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #d8b4fe; }
+                    .template-header { padding: 24px; color: #fff; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+                    .header-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+                    h2 { font-size: 20px; font-weight: 700; }
+                    .template-body { padding: 24px; }
+                    .info-section { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; padding: 16px; color: #fff; margin-bottom: 16px; }
+                    .info-section h3 { font-size: 16px; margin-bottom: 12px; }
+                    .info-list { list-style: none; }
+                    .info-list li { background: rgba(255,255,255,0.15); padding: 10px 12px; border-radius: 10px; margin-bottom: 10px; }
+                    .info-list strong { font-weight: 600; margin-right: 6px; }
+                    .info-list a { color: #ffffff; text-decoration: none; }
+                    .reason-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 14px; border-radius: 12px; margin: 14px 0; border-left: 4px solid #ffffff; }
+                    .tag { display: inline-block; padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+                    .contact-tag { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); color: #2c3e50; }
+                    .urgency-high { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: #fff; }
+                    .urgency-normal { background: linear-gradient(135deg, #00b894 0%, #00a085 100%); color: #fff; }
+                    .notes-section { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #8b4513; padding: 14px; border-radius: 12px; margin: 14px 0; border: 2px dashed rgba(139, 69, 19, 0.3); }
+                    .footer { background: #ede9fe; color: #4a5568; padding: 16px 20px; text-align: center; font-style: italic; border-top: 1px solid #d8b4fe; }
+                </style>
+            </head>
+            <body>
+                <div class=\"template\">
+                    <div class=\"template-header\">
+                        <span class=\"header-icon\">🎯</span>
+                        <h2>New Customer Contact</h2>
+                    </div>
+                    <div class=\"template-body\">
+                        <div class=\"info-section\">
+                            <h3>Customer Information</h3>
+                            <ul class=\"info-list\">
+                                <li><strong>Name:</strong> {{ client_name }}</li>
+                                <li><strong>Phone:</strong> <a href=\"tel:{{ phone_number }}\">{{ phone_number }}</a></li>
+                                {% if address %}
+                                <li><strong>Address:</strong> {{ address }}</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        <div class=\"reason-box\">
+                            <strong>Reason for calling:</strong> {{ reason_calling }}
+                        </div>
+                        <p><strong>Preferred contact:</strong> <span class=\"tag contact-tag\">{{ preferred_contact_method }}</span></p>
+                        {% if urgency %}
+                        <p><strong>Urgency:</strong> 
+                            <span class=\"tag {% if urgency in ['high', 'urgent'] %}urgency-high{% else %}urgency-normal{% endif %}\">{{ urgency.upper() }}</span>
+                        </p>
+                        {% endif %}
+                        {% if additional_notes %}
+                        <div class=\"notes-section\">
+                            <strong>Notes:</strong> {{ additional_notes }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class=\"footer\">
+                        <em>This customer data has been automatically validated using the CustomerCall schema.</em>
+                    </div>
+                </div>
+            </body>
+            </html>
             """,
-            
-            'customer_data_invalid': """
-            <h2>⚠️ New Customer Contact - VALIDATION FAILED</h2>
-            <p><strong>Time:</strong> {{ timestamp }}</p>
-            <p><strong>Stream ID:</strong> {{ stream_id }}</p>
-            <p><strong>Validation:</strong> <span style="color: red;">❌ VALIDATION FAILED</span></p>
-            <p><strong>Error:</strong> <code>{{ validation_error }}</code></p>
-            
-            <h3>Raw Customer Data (Needs Manual Review):</h3>
-            <ul>
-            {% if full_name %}<li><strong>Name:</strong> {{ full_name }}</li>{% endif %}
-            {% if phone_number %}<li><strong>Phone:</strong> {{ phone_number }} <em>(may be invalid)</em></li>{% endif %}
-            {% if email %}<li><strong>Email:</strong> {{ email }}</li>{% endif %}
-            {% if company %}<li><strong>Company:</strong> {{ company }}</li>{% endif %}
-            {% if address %}<li><strong>Address:</strong> {{ address }}</li>{% endif %}
-            {% if reason_calling %}<li><strong>Reason:</strong> {{ reason_calling }}</li>{% endif %}
-            {% if preferred_contact %}<li><strong>Preferred Contact:</strong> {{ preferred_contact }} <em>(may be invalid)</em></li>{% endif %}
-            {% if notes %}<li><strong>Notes:</strong> {{ notes }}</li>{% endif %}
-            </ul>
-            
-            <p><strong>⚠️ Action Required:</strong> Please manually validate and correct this customer information before follow-up.</p>
-            
-            <hr>
-            <p><em>This is an automated validation failure alert from your voice agent system.</em></p>
-            """,
-            
             'meeting_scheduled': """
-            <h2>📅 Meeting Scheduled</h2>
-            <p><strong>Time:</strong> {{ timestamp }}</p>
-            
-            <h3>Meeting Details:</h3>
-            <ul>
-            <li><strong>Client:</strong> {{ client_name }}</li>
-            <li><strong>Date:</strong> {{ preferred_date }}</li>
-            <li><strong>Time:</strong> {{ preferred_time }}</li>
-            <li><strong>Address:</strong> {{ address }}</li>
-            <li><strong>Reach Out Method:</strong> {{ meeting_type }}</li>
-            {% if notes %}<li><strong>Notes:</strong> {{ notes }}</li>{% endif %}
-            </ul>
-            
-            <p><strong>⚠️ Important:</strong> Please confirm this meeting with the client before the scheduled time.</p>
-            
-            <hr>
-            <p><em>This is an automated message from your voice agent system.</em></p>
+            <!DOCTYPE html>
+            <html lang=\"en\">
+            <head>
+                <meta charset=\"UTF-8\">
+                <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+                <title>Meeting Scheduled</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #6b46c1; padding: 24px; }
+                    .template { max-width: 600px; margin: 0 auto; background: #f3e8ff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #d8b4fe; }
+                    .template-header { padding: 24px; color: #fff; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+                    .header-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+                    h2 { font-size: 20px; font-weight: 700; }
+                    .template-body { padding: 24px; }
+                    .meeting-details { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #2c3e50; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+                    .info-list { list-style: none; }
+                    .info-list li { background: #f7f9fc; padding: 10px 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #eef2f7; }
+                    .info-list strong { font-weight: 600; margin-right: 6px; }
+                    .alert-box { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #d63031; padding: 14px; border-radius: 12px; margin: 14px 0; border: 2px solid #d63031; text-align: center; font-weight: 600; }
+                    .footer { background: #ede9fe; color: #4a5568; padding: 16px 20px; text-align: center; font-style: italic; border-top: 1px solid #d8b4fe; }
+                </style>
+            </head>
+            <body>
+                <div class=\"template\">
+                    <div class=\"template-header\">
+                        <span class=\"header-icon\">📅</span>
+                        <h2>Meeting Scheduled</h2>
+                    </div>
+                    <div class=\"template-body\">
+                        <div class=\"meeting-details\">
+                            <h3>Meeting Details</h3>
+                            <ul class=\"info-list\">
+                                <li><strong>Client:</strong> {{ client_name }}</li>
+                                <li><strong>Date:</strong> {{ preferred_date }}</li>
+                                <li><strong>Address:</strong> {{ address }}</li>
+                                <li><strong>Reach Out Method:</strong> {{ meeting_type }}</li>
+                                <li>{% if notes %}<strong>Notes:</strong> {{ notes }}{% endif %}</li>
+                            </ul>
+                        </div>
+                        <div class=\"alert-box\">
+                            <strong>⚠️ Important:</strong> Please confirm this meeting with the client before the scheduled time.
+                        </div>
+                    </div>
+                    <div class=\"footer\">
+                        <em>This is an automated message from your voice agent system.</em>
+                    </div>
+                </div>
+            </body>
+            </html>
             """,
-            
             'high_priority': """
-            <h2>🚨 HIGH PRIORITY CUSTOMER CONTACT</h2>
-            <p><strong>Time:</strong> {{ timestamp }}</p>
-            <p><strong>Urgency Level:</strong> <span style="color: red; font-weight: bold;">{{ urgency }}</span></p>
-            
-            <h3>Validated Customer Information:</h3>
-            <ul>
-            <li><strong>Name:</strong> {{ full_name }}</li>
-            <li><strong>Phone:</strong> <a href="tel:{{ phone_number }}">{{ phone_number }}</a></li>
-            {% if email %}<li><strong>Email:</strong> <a href="mailto:{{ email }}">{{ email }}</a></li>{% endif %}
-            <li><strong>Preferred Contact:</strong> {{ preferred_contact_method }}</li>
-            </ul>
-            
-            <p><strong>Reason:</strong> {{ reason_calling }}</p>
-            {% if additional_notes %}<p><strong>Notes:</strong> {{ additional_notes }}</p>{% endif %}
-            
-            <p><strong>⚡ Action Required:</strong> This customer requires immediate attention!</p>
-            
-            <hr>
-            <p><em>This is an automated HIGH PRIORITY alert from your voice agent system.</em></p>
+            <!DOCTYPE html>
+            <html lang=\"en\">
+            <head>
+                <meta charset=\"UTF-8\">
+                <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+                <title>High Priority Customer Contact</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #6b46c1; padding: 24px; }
+                    .template { max-width: 600px; margin: 0 auto; background: #f3e8ff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #d8b4fe; }
+                    .template-header { padding: 24px; color: #fff; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+                    .header-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+                    h2 { font-size: 20px; font-weight: 700; }
+                    .template-body { padding: 24px; }
+                    .priority-urgency { background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); color: #fff; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 16px; font-size: 14px; font-weight: 700; }
+                    .info-section { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; padding: 16px; color: #fff; margin-bottom: 16px; }
+                    .info-section h3 { font-size: 16px; margin-bottom: 12px; }
+                    .info-list { list-style: none; }
+                    .info-list li { background: rgba(255,255,255,0.15); padding: 10px 12px; border-radius: 10px; margin-bottom: 10px; }
+                    .info-list a { color: #ffffff; text-decoration: none; }
+                    .reason-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 14px; border-radius: 12px; margin: 14px 0; border-left: 4px solid #ffffff; }
+                    .priority-alert { background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); color: #fff; padding: 16px; border-radius: 12px; text-align: center; font-weight: 700; margin-top: 14px; }
+                    .footer { background: #ede9fe; color: #4a5568; padding: 16px 20px; text-align: center; font-style: italic; border-top: 1px solid #d8b4fe; }
+                </style>
+            </head>
+            <body>
+                <div class=\"template\">
+                    <div class=\"template-header\">
+                        <span class=\"header-icon\">🚨</span>
+                        <h2>HIGH PRIORITY CUSTOMER CONTACT</h2>
+                    </div>
+                    <div class=\"template-body\">
+                        <div class=\"priority-urgency\">Urgency Level: {{ urgency }}</div>
+                        <div class=\"info-section\">
+                            <h3>Validated Customer Information</h3>
+                            <ul class=\"info-list\">
+                                <li><strong>Name:</strong> {{ client_name }}</li>
+                                <li><strong>Phone:</strong> <a href=\"tel:{{ phone_number }}\">{{ phone_number }}</a></li>
+                                <li><strong>Preferred Contact:</strong> {{ preferred_contact_method }}</li>
+                            </ul>
+                        </div>
+                        <div class=\"reason-box\">
+                            <strong>Reason:</strong> {{ reason_calling }}
+                        </div>
+                        {% if additional_notes %}
+                        <div class=\"info-section\" style=\"background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #8b4513;\">
+                            <strong>Notes:</strong> {{ additional_notes }}
+                        </div>
+                        {% endif %}
+                        <div class=\"priority-alert\">⚡ Action Required: This customer requires immediate attention!</div>
+                    </div>
+                    <div class=\"footer\">
+                        <em>This is an automated HIGH PRIORITY alert from your voice agent system.</em>
+                    </div>
+                </div>
+            </body>
+            </html>
             """
         }
         

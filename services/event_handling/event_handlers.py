@@ -46,11 +46,12 @@ class CustomerDataEventHandler(BaseEventHandler):
         
         if customer_call:
             # Send email notification
-            subject = f"New Customer Contact: {customer_call.full_name}"
+            subject = f"New Customer Contact: {customer_call.client_name}"
             email_data = {
                 'timestamp': event_data['timestamp'],
                 'stream_id': event_data.get('stream_id'),
-                'full_name': customer_call.full_name,
+                'call_sid': event_data.get('call_sid'),
+                'client_name': customer_call.client_name,
                 'phone_number': customer_call.phone_number,
                 'address': customer_call.address,
                 'email': getattr(customer_call, 'email', ''),
@@ -62,22 +63,6 @@ class CustomerDataEventHandler(BaseEventHandler):
             
             self.email_service.send_email(subject, 'customer_data', email_data)
             
-            # Send WhatsApp if preferred contact method is WhatsApp
-            if customer_call.preferred_contact_method.lower() == 'whatsapp':
-                whatsapp_data = {
-                    'timestamp': datetime.fromisoformat(event_data['timestamp']).strftime('%Y-%m-%d %H:%M'),
-                    'full_name': customer_call.full_name,
-                    'phone_number': customer_call.phone_number,
-                    'address': customer_call.address,
-                    'reason_calling': customer_call.reason_calling,
-                    'preferred_contact_method': customer_call.preferred_contact_method
-                }
-                
-                # Send to business WhatsApp
-                from core.config.settings import settings
-                business_whatsapp = settings.BUSINESS_WHATSAPP_NUMBER
-                if business_whatsapp:
-                    self.whatsapp_service.send_whatsapp(business_whatsapp, 'customer_data', whatsapp_data)
         else:
             self.logger.warning(f"⚠️ Customer data validation failed: {error}")
 
@@ -98,6 +83,7 @@ class InvalidCustomerDataEventHandler(BaseEventHandler):
             **event_data['data'],
             'timestamp': event_data['timestamp'],
             'stream_id': event_data.get('stream_id'),
+            'call_sid': event_data.get('call_sid'),
             'validation_error': event_data['data'].get('validation_error', 'Unknown validation error')
         }
         
@@ -141,7 +127,7 @@ class HighPriorityEventHandler(BaseEventHandler):
         self.logger.warning("🚨 Processing HIGH PRIORITY event")
         
         data = event_data['data']
-        subject = f"🚨 HIGH PRIORITY: {data.get('full_name', 'Unknown Customer')}"
+        subject = f"🚨 HIGH PRIORITY: {data.get('client_name', 'Unknown Customer')}"
         
         email_data = {
             **data,
@@ -157,7 +143,7 @@ class HighPriorityEventHandler(BaseEventHandler):
         business_whatsapp = settings.BUSINESS_WHATSAPP_NUMBER
         if business_whatsapp:
             whatsapp_data = {
-                'full_name': data.get('full_name', 'Unknown'),
+                'client_name': data.get('client_name', 'Unknown'),
                 'phone_number': data.get('phone_number', 'No phone'),
                 'reason_calling': data.get('reason_calling', 'Not specified'),
                 'urgency': data.get('urgency', 'HIGH')

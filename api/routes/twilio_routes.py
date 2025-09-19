@@ -42,25 +42,14 @@ TOOLS = [
     {
         "type": "function",
         "name": "gather_client_information",
-        "description": "Collect and store client information including name, phone, address, reason for calling",
+        "description": "Collect and store client information including name, phone, address, reason for calling or messaging",
         "parameters": {
             "type": "object",
             "properties": {
-                "full_name": {
-                    "type": "string",
-                    "description": "Client's full name"
-                },
-                "phone_number": {
-                    "type": "string",
-                    "description": "Client's phone number"
-                },
+                "client_name": {"type": "string"},
                 "address": {
                     "type": "string",
                     "description": "Client's address"
-                },
-                "email": {
-                    "type": "string",
-                    "description": "Client's email address"
                 },
                 "reason_calling": {
                     "type": "string",
@@ -68,7 +57,7 @@ TOOLS = [
                 },
                 "preferred_contact_method": {
                     "type": "string",
-                    "enum": ["Whatsapp", "Email", "Phone"],
+                    "enum": ["Whatsapp", "Phone"],
                     "description": "Client's preferred method of contact"
                 },
                 "additional_notes": {
@@ -76,7 +65,7 @@ TOOLS = [
                     "description": "Additional notes about the client or their request"
                 }
             },
-            "required": ["full_name", "reason_calling", "preferred_contact_method"]
+            "required": ["client_name", "reason_calling", "preferred_contact_method"]
         }
     },
     {
@@ -91,25 +80,9 @@ TOOLS = [
                 "preferred_time": {"type": "string", "description": "Client's preferred time"},
                 "meeting_type": {"type": "string", "enum": ["phone", "video", "in_person"]},
                 "address": {"type": "string", "description": "Client's address"},
-                "notes": {"type": "string", "description": "Additional notes about the client or their request"},
-            },
+                "notes": {"type": "string", "description": "Additional notes about the client or their request"}            
+                },
             "required": ["client_name", "preferred_date", "preferred_time"]
-        }
-    },
-    {
-        "type": "function",
-        "name": "send_business_email",
-        "description": "Send client details to business email for follow-up",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "client_data": {"type": "object"},
-                "priority": {"type": "string", "enum": ["low", "medium", "high"]},
-                "notes": {"type": "string"},
-                "business_email": {"type": "string"},
-                "business_phone": {"type": "string"}
-            },
-            "required": ["client_data"]
         }
     }
 ]
@@ -131,12 +104,9 @@ class TwilioClient:
     async def call_status( request: Request):
         """Handle Twilio call status webhooks"""
         try:
-            form_data = await request.form()
-            
-            call_sid = form_data.get("CallSid", "unknown")
-            call_status = form_data.get("CallStatus", "unknown")
-            call_duration = form_data.get("CallDuration", "0")
-            
+            call_sid = request.query_params.get("CallSid", "unknown")
+            call_status = request.query_params.get("CallStatus", "unknown")
+            call_duration = request.query_params.get("CallDuration", "0")
             logger.info(f"📞 Call {call_sid} status: {call_status} (duration: {call_duration}s)")
             
             # Update call status in Redis
@@ -147,7 +117,7 @@ class TwilioClient:
                 "timestamp": "2024-01-01T00:00:00Z"
             }
             
-            await redis_client.publish_event("call_status", status_data, call_sid)
+            await redis_client.publish_event("call_status", status_data, call_sid=call_sid)
             
             return {"status": "success", "message": "Call status updated"}
             
@@ -178,70 +148,10 @@ class TwilioClient:
             raise HTTPException(status_code=500, detail="Failed to serve audio file")
 
 
-@router.post("/voice-webhook")
-async def voice_webhook(request: Request):
-    """Generic voice webhook for advanced Twilio voice features"""
-    try:
-        form_data = await request.form()
-        
-        # Extract webhook data
-        webhook_type = form_data.get("webhook_type", "unknown")
-        call_sid = form_data.get("CallSid", "unknown")
-        
-        logger.info(f"🔗 Voice webhook received: {webhook_type} for call {call_sid}")
-        
-        # Handle different webhook types
-        if webhook_type == "speech":
-            # Handle speech recognition results
-            speech_result = form_data.get("SpeechResult", "")
-            confidence = form_data.get("Confidence", "0")
-            
-            speech_data = {
-                "call_sid": call_sid,
-                "speech_result": speech_result,
-                "confidence": confidence,
-                "timestamp": "2024-01-01T00:00:00Z"
-            }
-            
-            await redis_client.publish_event("speech_result", speech_data, call_sid)
-            
-        elif webhook_type == "gather":
-            # Handle gather input
-            digits = form_data.get("Digits", "")
-            
-            gather_data = {
-                "call_sid": call_sid,
-                "digits": digits,
-                "timestamp": "2024-01-01T00:00:00Z"
-            }
-            
-            await redis_client.publish_event("gather_result", gather_data, call_sid)
-        
-        return {"status": "success", "message": f"Webhook {webhook_type} processed"}
-        
-    except Exception as e:
-        logger.error(f"❌ Error processing voice webhook: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process webhook")
-
-
 @router.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket, 
                               db: Session = Depends(get_db)):
     """Handle WebSocket connections between Twilio and OpenAI."""
-    async def recieve_call_sid() -> str:
-        """Receive the stream SID from the first message from Twilio."""
-        try:
-            message = await websocket.receive_text()
-            message = await websocket.receive_text()
-            data = json.loads(message)
-            if data['event'] == 'start':
-                return data['start']['callSid']
-        except Exception as e:
-            logger.error(f"❌ Error receiving stream SID: {e}")
-            return None
-        return None
-    
-    print("Client connected")
     await websocket.accept()
     
     async with websockets.connect(
@@ -263,9 +173,10 @@ async def handle_media_stream(websocket: WebSocket,
         owner = None
         business = None
         call_sid = None
+        call = None
         async def receive_from_twilio():
             """Receive audio data from Twilio and send it to the OpenAI Realtime API."""
-            nonlocal stream_sid, latest_media_timestamp, call_sid, forwarded_from, owner, business
+            nonlocal stream_sid, latest_media_timestamp, call_sid, forwarded_from, owner, business, call
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
@@ -298,7 +209,7 @@ async def handle_media_stream(websocket: WebSocket,
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
-            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_sid, owner, business
+            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_sid, owner, business, call
             should_end = False
             try:
                 async for openai_message in openai_ws:
@@ -309,7 +220,8 @@ async def handle_media_stream(websocket: WebSocket,
                         arguments = json.loads(response.get('arguments', '{}'))
                         
                         # Process the function call and extract customer data
-                        result = await handle_function_call(function_name, arguments, stream_sid, call_sid, owner, business)
+                        assert call
+                        result = await handle_function_call(function_name, arguments, stream_sid, call_sid, call._from,owner, business)
                         
                         # Send function result back to OpenAI
                         function_result = {
@@ -439,6 +351,7 @@ async def handle_function_call(function_name,
                                arguments, 
                                stream_sid: int, 
                                call_sid: str,
+                               from_number: str,
                                owner: Optional[Owner] = None, 
                                business: Optional[Business] = None):
     """Handle function calls from OpenAI and extract customer data"""
@@ -456,7 +369,8 @@ async def handle_function_call(function_name,
                 **arguments,
                 "timestamp": datetime.now().isoformat()
             }
-            
+            if "phone_number" not in arguments:
+                arguments["phone_number"] = from_number
             # Map fields to match schema
             field_mapping = {
                 'preferred_contact': 'preferred_contact_method',
@@ -466,12 +380,11 @@ async def handle_function_call(function_name,
             for old_key, new_key in field_mapping.items():
                 if old_key in validation_data:
                     validation_data[new_key] = validation_data.pop(old_key)
-            
             # Validate the data
             customer_call = schema.load(validation_data)
             
             # Publish validated data to Redis for downstream processing
-            await redis_client.publish_event('customer_data', arguments, stream_sid)
+            await redis_client.publish_event('customer_data', arguments, stream_sid, call_sid)
             await redis_client.store_customer_session(stream_sid or "unknown", {
                 **arguments,
                 "timestamp": datetime.now().isoformat(),
@@ -516,18 +429,6 @@ async def handle_function_call(function_name,
         return {
             "status": "success",
             "message": f"Meeting scheduled for {arguments.get('client_name')} on {arguments.get('preferred_date')} at {arguments.get('preferred_time')}"
-        }
-    
-    elif function_name == "send_business_email":
-        print(f"\n📧 EMAIL NOTIFICATION SENT")
-        print(f"Priority: {arguments.get('priority', 'medium')}")
-        
-        # Publish email request to Redis
-        await redis_client.publish_event('email_request', arguments, stream_sid, call_sid)
-        
-        return {
-            "status": "success",
-            "message": "Business email sent with client details"
         }
     
     return {"status": "error", "message": "Unknown function"}
